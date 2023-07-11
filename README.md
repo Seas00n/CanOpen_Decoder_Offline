@@ -1,2 +1,2 @@
 # CanOpen_Decoder_Offline
-Offline decode CanOpen csv
+Offline decode Canopen csv file
