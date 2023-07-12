@@ -3,8 +3,10 @@ from pandas import DataFrame
 import datetime
 import numpy as np
 import matplotlib.pyplot as plt
-# file_path = "c1.xltx"
-# sheet_name = "c1"
+
+
+# file_path = "c2.xltm"
+# sheet_name = "c2"
 # df = pd.read_excel(file_path, sheet_name=sheet_name)
 #
 # num_rows = len(df["序号"])
@@ -29,24 +31,38 @@ import matplotlib.pyplot as plt
 # len_array = np.array(len_list)
 # data_array = np.array(data_list)
 # time_array = np.array(time_list)
-# np.save("c1_id.npy", id_array)
-# np.save("c1_len.npy", len_array)
-# np.save("c1_data.npy", data_array)
-# np.save("c1_time.npy", time_array)
+# np.save("c2_id.npy", id_array)
+# np.save("c2_len.npy", len_array)
+# np.save("c2_data.npy", data_array)
+# np.save("c2_time.npy", time_array)
 
-time_array = np.load("c1_time.npy", allow_pickle=True)
-id_array = np.load("c1_id.npy", allow_pickle=True)
-data_array = np.load("c1_data.npy", allow_pickle=True)
-len_array = np.load("c1_len.npy", allow_pickle=True)
+
+def twosComplement_hex(hexval, bits):
+    unsigned_int = int(hexval, 16)
+    if bits == 32:
+        signed_int = unsigned_int if unsigned_int < 0x80000000 else unsigned_int - 0x100000000
+    elif bits == 16:
+        signed_int = unsigned_int - 0x10000 if unsigned_int & 0x8000 else unsigned_int
+    else:
+        signed_int = unsigned_int
+    return signed_int
+
+
+time_array = np.load("c2_time.npy", allow_pickle=True)
+id_array = np.load("c2_id.npy", allow_pickle=True)
+data_array = np.load("c2_data.npy", allow_pickle=True)
+len_array = np.load("c2_len.npy", allow_pickle=True)
 num_msg = np.size(time_array, 0)
 id = "0x7e"
 pos_list = []
 current_list = []
 pos_current_time_list = []
+pos_current_idx_list = []
 state_word_list = []
 vel_list = []
 torque_list = []
 vel_torque_time_list = []
+vel_torque_idx_list = []
 
 tpdo_motor1 = "0x01FE"
 tpdo_motor2 = "0x02FE"
@@ -56,12 +72,15 @@ for i in range(num_msg):
         len = len_array[i]
         if len < 8:
             continue
+        pos_current_idx_list.append(i)
         data_ = str_data.split(" ", len)
-        pos_ = int(data_[0], 16) + int(data_[1], 16) * 256 + int(data_[2], 16) * 65536 + int(data_[3],
-                                                                                             16) * 16777216
+        pos_ = data_[3] + data_[2] + data_[1] + data_[0]
+        pos_ = twosComplement_hex(pos_, 32)
         pos_ = pos_ / 8192.0 / 50.0 * 360.0
-        current_ = int(data_[6], 16) + int(data_[7], 16) * 256
-        state_ = int(data_[4], 16) + int(data_[5], 16) * 256
+        current_ = data_[7] + data_[6]
+        current_ = twosComplement_hex(current_, 16)
+        state_ = data_[5] + data_[4]
+        state_ = twosComplement_hex(state_, 8)
         pos_list.append(pos_)
         current_list.append(current_)
         state_word_list.append(state_)
@@ -74,19 +93,25 @@ for i in range(num_msg):
         len = len_array[i]
         if len < 8:
             continue
+        vel_torque_idx_list.append(i)
         data_ = str_data.split(" ", len)
-        vel_ = int(data_[0], 16) + int(data_[1], 16) * 256 + int(data_[2], 16) * 65536 + int(data_[3],
-                                                                                             16) * 16777216
+        vel_ = data_[3] + data_[2] + data_[1] + data_[0]
+        vel_ = twosComplement_hex(vel_, 32)
         vel_ = vel_ / 8192.0 / 50.0 * 360.0
-        torque_ = int(data_[6], 16) + int(data_[7], 16) * 256
-        state_ = int(data_[4], 16) + int(data_[5], 16) * 256
+        torque_ = data_[7] + data_[6]
+        torque_ = twosComplement_hex(torque_, 16)
+        state_ = data_[5] + data_[4]
+        state_ = twosComplement_hex(state_, 8)
         vel_list.append(vel_)
         torque_list.append(torque_)
         time_ = time_array[i]
         time_ = time_.hour * 3600 + time_.minute * 60 + time_.second + time_.microsecond * 0.001
         vel_torque_time_list.append(time_)
 
-data_array = np.array(state_word_list)
-idx = np.arange(np.size(data_array,0))
-plt.plot(idx, data_array)
+d_array = np.array(state_word_list)*0.01
+d2_array = np.array(pos_list)
+idx = np.arange(np.size(d_array, 0))
+idx_2 = np.arange(np.size(d2_array, 0))
+plt.plot(idx, d_array)
+plt.plot(idx_2, d2_array)
 plt.show()
